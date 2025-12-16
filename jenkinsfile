@@ -1,79 +1,86 @@
 pipeline {
-  agent any
+    agent any
 
-  parameters {
-    choice(
-      name: 'ACTION',
-      choices: ['apply', 'destroy'],
-      description: 'Create or Destroy EKS Cluster'
-    )
-  }
-
-  environment {
-    AWS_DEFAULT_REGION = 'us-east-1'
-  }
-
-  stages {
-
-    stage('Checkout SCM'){
-            steps{
-                script{
-                  checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/Ajay1223334/new-terraform-eks.git']])
-      }
+    parameters {
+        choice(
+            name: 'ACTION',
+            choices: ['apply', 'destroy'],
+            description: 'Create or Destroy EKS Cluster'
+        )
     }
 
-    stage('Terraform Init') {
-      steps {
-        withCredentials([
-          usernamePassword(
-            credentialsId: 'aws-creds',
-            usernameVariable: 'AWS_ACCESS_KEY_ID',
-            passwordVariable: 'AWS_SECRET_ACCESS_KEY'
-          )
-        ]) {
-          dir('terraform') {
-            sh 'terraform init -upgrade'
-          }
-        }
-      }
+    environment {
+        AWS_DEFAULT_REGION = 'us-east-1'
     }
 
-    stage('Terraform Validate') {
-      steps {
-        dir('terraform') {
-          sh 'terraform validate'
-        }
-      }
-    }
+    stages {
 
-    stage('Terraform Plan') {
-      steps {
-        dir('terraform') {
-          sh 'terraform plan -out=tfplan'
-        }
-      }
-    }
-
-    stage('Approval') {
-      steps {
-        input message: "Proceed to ${params.ACTION} EKS cluster?"
-      }
-    }
-
-    stage('Terraform Apply/Destroy') {
-      steps {
-        dir('terraform') {
-          script {
-            if (params.ACTION == 'apply') {
-              sh 'terraform apply -auto-approve tfplan'
-            } else {
-              sh 'terraform destroy -auto-approve'
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/Ajay1223334/new-terraform-eks.git'
             }
-          }
         }
-      }
+
+        stage('Terraform Init') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'aws-creds',
+                        usernameVariable: 'AWS_ACCESS_KEY_ID',
+                        passwordVariable: 'AWS_SECRET_ACCESS_KEY'
+                    )
+                ]) {
+                    dir('terraform') {
+                        sh 'terraform init -upgrade'
+                    }
+                }
+            }
+        }
+
+        stage('Terraform Validate') {
+            steps {
+                dir('terraform') {
+                    sh 'terraform validate'
+                }
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                dir('terraform') {
+                    sh 'terraform plan -out=tfplan'
+                }
+            }
+        }
+
+        stage('Approval') {
+            steps {
+                input message: "Proceed to ${params.ACTION} the EKS cluster?"
+            }
+        }
+
+        stage('Terraform Apply or Destroy') {
+            steps {
+                dir('terraform') {
+                    script {
+                        if (params.ACTION == 'apply') {
+                            sh 'terraform apply -auto-approve tfplan'
+                        } else {
+                            sh 'terraform destroy -auto-approve'
+                        }
+                    }
+                }
+            }
+        }
     }
-  }
+
+    post {
+        failure {
+            echo '❌ Pipeline failed. Check Jenkinsfile or Terraform configuration.'
+        }
+        success {
+            echo '✅ Pipeline completed successfully.'
+        }
+    }
 }
-
-
