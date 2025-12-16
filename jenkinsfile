@@ -15,10 +15,10 @@ pipeline {
 
   stages {
 
-    stage('Checkout Code') {
-      steps {
-        git branch: 'main',
-            url: 'https://github.com/Ajay1223334/new-terraform-eks.git'
+    stage('Checkout SCM'){
+            steps{
+                script{
+                  checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/Ajay1223334/new-terraform-eks.git']])
       }
     }
 
@@ -75,4 +75,5 @@ pipeline {
     }
   }
 }
+
 
